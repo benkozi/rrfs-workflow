@@ -460,6 +460,8 @@ class RaveToMpasRegridProcessor:
                         rave_field.reshape_field_data(dst_field.data),
                         collective=True,
                     )
+            src_fwrap.value.destroy()
+            del src_fwrap
 
             if rave_field.name == "ENL_POLL":
                 with open_nc(self.context.new_dst_path, mode="a") as ds:
@@ -491,6 +493,10 @@ class RaveToMpasRegridProcessor:
                         rave_field.reshape_field_data(dst_field_enl.data + dst_field_dbl.data),
                         collective=True,
                     )
+                src_fwrap_enl.value.destroy()
+                del src_fwrap_enl
+                src_fwrap_dbl.value.destroy()
+                del src_fwrap_dbl
             if rave_field.name == "TPM":
                 with open_nc(self.context.new_dst_path, mode="a") as ds:
                     _LOGGER.info(f"calculating PM10 as TPM - PM25")
@@ -524,8 +530,10 @@ class RaveToMpasRegridProcessor:
                         data3,
                         collective=True,
                     )
-            src_fwrap.value.destroy()
-            del src_fwrap
+                src_fwrap_ttl.value.destroy()
+                del src_fwrap_ttl
+                src_fwrap_p25.value.destroy()
+                del src_fwrap_p25
 
         if self.context.rank == 0:
             field_names = tuple(ii.name for ii in self.context.rave_fields)
@@ -546,6 +554,9 @@ class RaveToMpasRegridProcessor:
 
     def finalize(self) -> None:
         _LOGGER.info("finalizing")
+        self._regridder.destroy()
+        self._dst_field.destroy()
+        self._src_gwrap.value.destroy()
 
     def create_desc_stuff(self, targets: Iterable[FileDesc]) -> pd.DataFrame:
         _LOGGER.info("entering create_desc_stuff")
