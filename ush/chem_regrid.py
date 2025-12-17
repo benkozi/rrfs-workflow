@@ -251,6 +251,7 @@ class RaveToMpasRegridProcessor:
         self._regridder: esmpy.Regrid | None = None
         self._dst_field: esmpy.Field | None = None
         self._src_gwrap: GridWrapper | None = None
+        self._dst_mesh: esmpy.Mesh | None = None
 
     def initialize(self) -> None:
         _LOGGER.info(f"initialize: {self.context=}")
@@ -300,6 +301,7 @@ class RaveToMpasRegridProcessor:
         dst_mesh = esmpy.Mesh(
             filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
         )
+        self._dst_mesh = dst_mesh
 
 # Check for extra dims beyond lat/lon
         if self.context.level_out_size > 1 and self.context.time_size > 1:
@@ -557,6 +559,7 @@ class RaveToMpasRegridProcessor:
         self._regridder.destroy()
         self._dst_field.destroy()
         self._src_gwrap.value.destroy()
+        self._dst_mesh.destroy()
 
     def create_desc_stuff(self, targets: Iterable[FileDesc]) -> pd.DataFrame:
         _LOGGER.info("entering create_desc_stuff")
