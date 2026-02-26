@@ -12,7 +12,6 @@ import esmpy
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, computed_field
-from pyremap import MpasCellMeshDescriptor
 
 from regrid_wrapper.context.comm import COMM, reconcile_bounds
 from regrid_wrapper.context.logging import LOGGER
@@ -290,6 +289,8 @@ class RaveToMpasRegridProcessor:
 
         if not self.context.scrip_path.exists() and self.context.rank == 0:
             _LOGGER.info("writing mpas scrip grid")
+            from pyremap import MpasCellMeshDescriptor
+
             mpas_desc = MpasCellMeshDescriptor(
                 str(self.context.dst_path), self.context.mesh_name + ".init"
             )
