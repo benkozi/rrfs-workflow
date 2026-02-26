@@ -1,6 +1,7 @@
 import sys
 import glob
 from abc import abstractmethod, ABC
+from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from functools import cached_property
 from pathlib import Path
@@ -11,7 +12,6 @@ import os
 import esmpy
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, computed_field
 
 from regrid_wrapper.context.comm import COMM, reconcile_bounds
 from regrid_wrapper.context.logging import LOGGER
@@ -57,7 +57,8 @@ def find_latest_rave_file(input_dir, target_time_str, ebb_dcycle, max_lookback_h
     # nothing found within lookback window
     return []
 
-class AbstractRaveField(ABC, BaseModel):
+@dataclass
+class AbstractRaveField(ABC):
     name: str
     attrs: dict[str, Any]
     fill_value: float
@@ -67,7 +68,6 @@ class AbstractRaveField(ABC, BaseModel):
     level_out_size: int
     time_size: int
 
-    @computed_field
     @cached_property
     def time_dimension(self) -> Dimension:
         return Dimension(
@@ -79,7 +79,6 @@ class AbstractRaveField(ABC, BaseModel):
             coordinate_type="time",
         )
 
-    @computed_field
     @cached_property
     def nklevel_dimension(self) -> Dimension:
         return Dimension(
@@ -188,7 +187,8 @@ class RaveField4d(AbstractRaveField):
         return target.reshape(-1, 20, 12)
 
 
-class RaveToMpasRegridContext(BaseModel):
+@dataclass
+class RaveToMpasRegridContext:
     dataset_name: str
     src_path: Path
     dst_path: Path
@@ -218,7 +218,6 @@ class RaveToMpasRegridContext(BaseModel):
 
     rank: int = COMM.rank
 
-    @computed_field
     @cached_property
     def rave_fields(self) -> tuple[AbstractRaveField, ...]:
         rave_fields = []
@@ -267,7 +266,8 @@ class RaveToMpasRegridContext(BaseModel):
         }
 
 
-class FileDesc(BaseModel):
+@dataclass
+class FileDesc:
     path: Path
     origin: Literal["src", "dst"]
     field_names: tuple[str, ...]
