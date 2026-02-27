@@ -235,20 +235,20 @@ class RaveToMpasRegridContext:
                     "num_cells": self.num_cells,
                 }
                 if field_name in ("clayfrac", "sandfrac", "uthres_sg", "uthres", "sep"):
-                    app = RaveField1d.model_validate(init_data)
+                    app = RaveField1d(**init_data)
                 elif field_name in ("FRE", "FRP_MEAN", "RWC_denominator", "ecoregion_ID", "10h_dead_fuel_moisture_content"):
-                    app = RaveField2d.model_validate(init_data)
+                    app = RaveField2d(**init_data)
                 elif field_name in ("DBL_POLL", "ENL_POLL", "GRA_POLL", "RAG_POLL"):
-                    app = RaveField3d.model_validate(init_data)
+                    app = RaveField3d(**init_data)
                 elif self.dataset_name == 'NEMO' and field_name in ("PEC", "POC", "PMOTHR", "PMC"):
-                    app = RaveField3d.model_validate(init_data)
+                    app = RaveField3d(**init_data)
                 elif self.dataset_name == 'RAVE' and field_name in ("PM25", "NH3", "SO2", "TPM", "NOx", "CH4","CO"):
-                    app = RaveField3d.model_validate(init_data)
+                    app = RaveField3d(**init_data)
                 elif field_name in ("albedo_drag", "feff", "LAI", "GVF", "PC", "fveg", "fbare", "lcbare", "lcveg"):
-                    app = RaveField2d_plusTime.model_validate(init_data)
+                    app = RaveField2d_plusTime(**init_data)
 # GRAPES anthro data - 12 x 20 x lat x lon --> (latXlon) x (level) x (time) -----(then, back in the shell script)----> Time x nCells x nkemit
                 elif self.dataset_name == 'GRA2PES' and field_name in ("HC01", "PM25-PRI", "PM10-PRI", "h_agl","SO2","NH3","NOX","CO"):
-                    app = RaveField4d.model_validate(init_data)
+                    app = RaveField4d(**init_data)
                 else:
                     raise NotImplementedError(field_name)
                 rave_fields.append(app)
