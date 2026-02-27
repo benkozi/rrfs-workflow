@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from regrid_wrapper.context.comm import COMM, reconcile_bounds
+from regrid_wrapper.context.env import ENV
 from regrid_wrapper.context.logging import LOGGER
 from regrid_wrapper.esmpy.field_wrapper import (
     GridSpec,
@@ -26,7 +27,7 @@ from regrid_wrapper.esmpy.field_wrapper import (
     DimensionCollection,
     set_variable_data,
     HasNcAttrsType,
-    copy_nc_variable,
+    copy_nc_variable, set_variable_data_serial,
 )
 
 _LOGGER = LOGGER.getChild("mpas-regrid")
@@ -450,103 +451,140 @@ class RaveToMpasRegridProcessor:
             dims = rave_field.create_dimension_collection(reconciled_bounds)
             _LOGGER.info(f"{dims=}")
             _LOGGER.info(f"writing field to netcdf")
-            with open_nc(self.context.new_dst_path, mode="a") as ds:
+            with open_nc(self.context.new_dst_path, mode="r") as ds:
                 if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
                     area = np.asarray(ds.variables['areaCell'])
                     area_subset = area[reconciled_bounds[0]:reconciled_bounds[1]]
-                var = ds.createVariable(
-                    rave_field.name,
-                    rave_field.dtype,
-                    [dim.name[0] for dim in dims.value],
-                    fill_value=rave_field.fill_value,
-                )
-                for k, v in rave_field.attrs.items():
-                    setattr(var, k, v)
-
-                # Multiply FRE/FRP by output area so it is back to W or J*s
-                if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
-                    set_variable_data(
-                        var,
-                        dims,
-                        rave_field.reshape_field_data(dst_field.data * area_subset),
-                        collective=True,
-                    )
-                else:
-                    set_variable_data(
-                        var,
-                        dims,
-                        rave_field.reshape_field_data(dst_field.data),
-                        collective=True,
-                    )
-            src_fwrap.value.destroy()
-            del src_fwrap
-
-            if rave_field.name == "ENL_POLL":
-                with open_nc(self.context.new_dst_path, mode="a") as ds:
-                    _LOGGER.info(f"renaming and combining tree fields")
-
-                    src_fwrap_enl = self.create_src_field_wrapper(field_name='ENL_POLL')
-                    dst_field_enl = self.get_dst_field()
-                    dst_field_enl.data.fill(0.0)
-                    regridder(src_fwrap_enl.value, dst_field_enl)
-
-                    src_fwrap_dbl = self.create_src_field_wrapper(field_name='DBL_POLL')
-                    dst_field_dbl = self.get_dst_field()
-                    dst_field_dbl.data.fill(0.0)
-                    regridder(src_fwrap_dbl.value, dst_field_dbl)
-
-                    rave_field = self.context.rave_fields[0]
-
+            if COMM.rank == 0:
+                with open_nc(self.context.new_dst_path, mode="a", parallel=False) as ds:
                     var = ds.createVariable(
-                        'TREE_POLL',
+                        rave_field.name,
                         rave_field.dtype,
                         [dim.name[0] for dim in dims.value],
                         fill_value=rave_field.fill_value,
                     )
-                    for k, v in self.context.rave_fields[0].attrs.items():
+                    for k, v in rave_field.attrs.items():
                         setattr(var, k, v)
+            COMM.barrier()
+
+            if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
+                # Multiply FRE/FRP by output area so it is back to W or J*s
+                target_data = rave_field.reshape_field_data(dst_field.data * area_subset)
+            else:
+                target_data = rave_field.reshape_field_data(dst_field.data)
+            if ENV.REGRID_WRAPPER_PARALLEL_NC4:
+                with open_nc(self.context.new_dst_path, mode="a") as ds:
+                    var = ds.variables[rave_field.name]
                     set_variable_data(
                         var,
                         dims,
-                        rave_field.reshape_field_data(dst_field_enl.data + dst_field_dbl.data),
+                        target_data,
                         collective=True,
                     )
+            else:
+                set_variable_data_serial(
+                    self.context.new_dst_path,
+                    rave_field.name,
+                    dims,
+                    target_data,
+                )
+            src_fwrap.value.destroy()
+            del src_fwrap
+
+            if rave_field.name == "ENL_POLL":
+                _LOGGER.info(f"renaming and combining tree fields")
+
+                src_fwrap_enl = self.create_src_field_wrapper(field_name='ENL_POLL')
+                dst_field_enl = self.get_dst_field()
+                dst_field_enl.data.fill(0.0)
+                regridder(src_fwrap_enl.value, dst_field_enl)
+
+                src_fwrap_dbl = self.create_src_field_wrapper(field_name='DBL_POLL')
+                dst_field_dbl = self.get_dst_field()
+                dst_field_dbl.data.fill(0.0)
+                regridder(src_fwrap_dbl.value, dst_field_dbl)
+
+                rave_field = self.context.rave_fields[0]
+
+                if COMM.rank == 0:
+                    with open_nc(self.context.new_dst_path, mode="a", parallel=False) as ds:
+                        var = ds.createVariable(
+                            'TREE_POLL',
+                            rave_field.dtype,
+                            [dim.name[0] for dim in dims.value],
+                            fill_value=rave_field.fill_value,
+                        )
+                        for k, v in self.context.rave_fields[0].attrs.items():
+                            setattr(var, k, v)
+                COMM.barrier()
+
+                target_data = rave_field.reshape_field_data(dst_field_enl.data + dst_field_dbl.data)
+                if ENV.REGRID_WRAPPER_PARALLEL_NC4:
+                    with open_nc(self.context.new_dst_path, mode="a") as ds:
+                        var = ds.variables['TREE_POLL']
+                        set_variable_data(
+                            var,
+                            dims,
+                            target_data,
+                            collective=True,
+                        )
+                else:
+                    set_variable_data_serial(
+                        self.context.new_dst_path,
+                        'TREE_POLL',
+                        dims,
+                        target_data,
+                    )
+
                 src_fwrap_enl.value.destroy()
                 del src_fwrap_enl
                 src_fwrap_dbl.value.destroy()
                 del src_fwrap_dbl
             if rave_field.name == "TPM":
-                with open_nc(self.context.new_dst_path, mode="a") as ds:
-                    _LOGGER.info(f"calculating PM10 as TPM - PM25")
-                    src_fwrap_ttl = self.create_src_field_wrapper(field_name='TPM')
-                    src_fwrap_p25 = self.create_src_field_wrapper(field_name='PM25')
+                _LOGGER.info(f"calculating PM10 as TPM - PM25")
+                src_fwrap_ttl = self.create_src_field_wrapper(field_name='TPM')
+                src_fwrap_p25 = self.create_src_field_wrapper(field_name='PM25')
 
-                    dst_field_ttl = self.get_dst_field()
-                    dst_field_ttl.data.fill(0.0)
-                    regridder(src_fwrap_ttl.value, dst_field_ttl)
+                dst_field_ttl = self.get_dst_field()
+                dst_field_ttl.data.fill(0.0)
+                regridder(src_fwrap_ttl.value, dst_field_ttl)
 
-                    dst_field_p25 = self.get_dst_field()
-                    dst_field_p25.data.fill(0.0)
-                    regridder(src_fwrap_p25.value, dst_field_p25)
+                dst_field_p25 = self.get_dst_field()
+                dst_field_p25.data.fill(0.0)
+                regridder(src_fwrap_p25.value, dst_field_p25)
 
-                    rave_field = self.context.rave_fields[0]
+                rave_field = self.context.rave_fields[0]
 
-                    var = ds.createVariable(
+                if self.context.rank == 0:
+                    with open_nc(self.context.new_dst_path, mode="a", parallel=False) as ds:
+                        var = ds.createVariable(
+                            'PM10',
+                            rave_field.dtype,
+                            [dim.name[0] for dim in dims.value],
+                            fill_value=rave_field.fill_value,
+                        )
+                        for k, v in self.context.rave_fields[0].attrs.items():
+                            setattr(var, k, v)
+                COMM.barrier()
+
+                data1 = rave_field.reshape_field_data(dst_field_ttl.data)
+                data2 = rave_field.reshape_field_data(dst_field_p25.data)
+                data3 = data1 - data2
+                if ENV.REGRID_WRAPPER_PARALLEL_NC4:
+                    with open_nc(self.context.new_dst_path, mode="a") as ds:
+                        var = ds.variables['PM10']
+                        set_variable_data(
+                            var,
+                            dims,
+                            data3,
+                            collective=True,
+                        )
+                else:
+                    set_variable_data_serial(
+                        self.context.new_dst_path,
                         'PM10',
-                        rave_field.dtype,
-                        [dim.name[0] for dim in dims.value],
-                        fill_value=rave_field.fill_value,
-                    )
-                    for k, v in self.context.rave_fields[0].attrs.items():
-                        setattr(var, k, v)
-                    data1 = rave_field.reshape_field_data(dst_field_ttl.data)
-                    data2 = rave_field.reshape_field_data(dst_field_p25.data)
-                    data3 = data1 - data2
-                    set_variable_data(
-                        var,
                         dims,
                         data3,
-                        collective=True,
                     )
                 src_fwrap_ttl.value.destroy()
                 del src_fwrap_ttl
@@ -672,7 +710,7 @@ class RaveToMpasRegridProcessor:
             elif field_name == "NH3":
                 conv_aer = (1.0 / 17.0) * 1000.
             elif field_name == "NOx":
-                conv_aer = ( (1.0 / 30.0) + (1.0 / 46.0) ) / 2. * 1000. 
+                conv_aer = ( (1.0 / 30.0) + (1.0 / 46.0) ) / 2. * 1000.
             else:
                 conv_aer = 1.0
         else:
@@ -754,6 +792,7 @@ def main() -> None:
         # xland = src_nc.variables['xland']
         # lmask[:] = np.where(xland > 0,1,0)
 
+    processor = None
     if dataset_name == "RAVE":
         field_names = ("TPM", "FRE", "FRP_MEAN", "PM25", "NH3", "SO2", "CH4","CO","NOx")
         # JLS, TODO - NEED TO ACCOUNT FOR EBB1, MORE THAN 24, ETC.
@@ -762,12 +801,12 @@ def main() -> None:
         for i in range(25):
             if ebb_dcycle == 1: # Same-day emissions
                 x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) + timedelta(hours=i)
-            elif ebb_dcycle == -1 or ebb_dcycle == 2: # Persistence (-1) or forecasted (2) needs prev 24 hours 
+            elif ebb_dcycle == -1 or ebb_dcycle == 2: # Persistence (-1) or forecasted (2) needs prev 24 hours
                 x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) - timedelta(hours=i)
             else:
                 _LOGGER.info("EBB_DCYLE selection not recognized, reverting to same day, ebb_dcycle = 1")
                 x = datetime(int(YYYY), int(MM), int(DD), int(HH), 0, 0) + timedelta(hours=i)
-                
+
             y = x.strftime("%Y%m%d%H")
             dates_needed.append(y)
         #
@@ -970,7 +1009,7 @@ def main() -> None:
                     level_out_size=level_out_size,
                     time_name=time_name,
                     time_size=time_size
-    
+
                 )
                 processor = RaveToMpasRegridProcessor(context=context)
                 processor.initialize()
