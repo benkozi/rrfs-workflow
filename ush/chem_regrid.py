@@ -222,6 +222,7 @@ class RaveToMpasRegridContext:
     @cached_property
     def rave_fields(self) -> tuple[AbstractRaveField, ...]:
         rave_fields = []
+        COMM.barrier()
         with open_nc(self.src_path, mode="r") as ds:
             for field_name in self.field_names:
                 var = ds.variables[field_name]
@@ -253,6 +254,7 @@ class RaveToMpasRegridContext:
                 else:
                     raise NotImplementedError(field_name)
                 rave_fields.append(app)
+        COMM.barrier()
         _LOGGER.debug(f"{rave_fields=}")
         return tuple(rave_fields)
 
@@ -410,6 +412,7 @@ class RaveToMpasRegridProcessor:
         _LOGGER.info("apply regridding")
 
         _LOGGER.info("create output file")
+        COMM.barrier()
         if self.context.rank == 0:
             with open_nc(self.context.new_dst_path, mode="w", clobber=True, parallel=False) as dst_nc:
                 dst_nc.createDimension("nCells", self.context.num_cells)
@@ -436,6 +439,7 @@ class RaveToMpasRegridProcessor:
                         for varname in ("latCell", "lonCell", "xtime"):
                             copy_nc_variable(src_nc, dst_nc, varname, copy_data=True)
 
+        COMM.barrier()
         regridder = self.get_regridder()
         for rave_field in self.context.rave_fields:
             _LOGGER.info(f"regridding {rave_field.name=}")
@@ -451,10 +455,12 @@ class RaveToMpasRegridProcessor:
             dims = rave_field.create_dimension_collection(reconciled_bounds)
             _LOGGER.info(f"{dims=}")
             _LOGGER.info(f"writing field to netcdf")
+            COMM.barrier()
             with open_nc(self.context.new_dst_path, mode="r") as ds:
                 if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
                     area = np.asarray(ds.variables['areaCell'])
                     area_subset = area[reconciled_bounds[0]:reconciled_bounds[1]]
+            COMM.barrier() #tdk: barriers after all operations - cannot append if reading
             if COMM.rank == 0:
                 with open_nc(self.context.new_dst_path, mode="a", parallel=False) as ds:
                     var = ds.createVariable(
@@ -506,6 +512,7 @@ class RaveToMpasRegridProcessor:
 
                 rave_field = self.context.rave_fields[0]
 
+                COMM.barrier()
                 if COMM.rank == 0:
                     with open_nc(self.context.new_dst_path, mode="a", parallel=False) as ds:
                         var = ds.createVariable(
@@ -555,6 +562,7 @@ class RaveToMpasRegridProcessor:
 
                 rave_field = self.context.rave_fields[0]
 
+                COMM.barrier()
                 if self.context.rank == 0:
                     with open_nc(self.context.new_dst_path, mode="a", parallel=False) as ds:
                         var = ds.createVariable(
@@ -786,11 +794,13 @@ def main() -> None:
         DOWs = "sundy"
 
     # Calculate the number of cells in the
+    COMM.barrier()
     with open_nc(dst_path, mode="r", parallel=False) as src_nc:
         foo = src_nc.variables['latCell']
         num_cells = len(foo)
         # xland = src_nc.variables['xland']
         # lmask[:] = np.where(xland > 0,1,0)
+    COMM.barrier()
 
     processor = None
     if dataset_name == "RAVE":
