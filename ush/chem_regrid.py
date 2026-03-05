@@ -330,8 +330,11 @@ class RaveToMpasRegridProcessor:
         src_fwrap = self.create_src_field_wrapper(self.context.rave_fields[0].name)
 
         _LOGGER.info("create destination mesh")
+        # dst_mesh = esmpy.Mesh(
+        #     filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
+        # )
         dst_mesh = esmpy.Mesh(
-            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
+            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.UGRID, meshname="grid_topology"
         )
         self._dst_mesh = dst_mesh
 
