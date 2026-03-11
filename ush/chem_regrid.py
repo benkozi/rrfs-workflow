@@ -274,6 +274,7 @@ class FileDesc:
 
 
 class RaveToMpasRegridProcessor:
+    _dst_mesh: esmpy.Mesh | None = None
 
     def __init__(self, context: RaveToMpasRegridContext) -> None:
         self.context = context
@@ -281,7 +282,6 @@ class RaveToMpasRegridProcessor:
         self._regridder: esmpy.Regrid | None = None
         self._dst_field: esmpy.Field | None = None
         self._src_gwrap: GridWrapper | None = None
-        self._dst_mesh: esmpy.Mesh | None = None
 
     def initialize(self) -> None:
         _LOGGER.info(f"initialize: {self.context=}")
@@ -329,14 +329,15 @@ class RaveToMpasRegridProcessor:
         _LOGGER.info("create source field")
         src_fwrap = self.create_src_field_wrapper(self.context.rave_fields[0].name)
 
-        _LOGGER.info("create destination mesh")
-        # dst_mesh = esmpy.Mesh(
-        #     filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
-        # )
-        dst_mesh = esmpy.Mesh(
-            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.UGRID, meshname="grid_topology"
-        )
-        self._dst_mesh = dst_mesh
+        if self._dst_mesh is None:
+            _LOGGER.info("create destination mesh")
+            # dst_mesh = esmpy.Mesh(
+            #     filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
+            # )
+            self._dst_mesh = esmpy.Mesh(
+                filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.UGRID, meshname="grid_topology"
+            )
+        dst_mesh = self._dst_mesh
 
 # Check for extra dims beyond lat/lon
         if self.context.level_out_size > 1 and self.context.time_size > 1:
@@ -556,29 +557,29 @@ class RaveToMpasRegridProcessor:
                 src_fwrap_p25.value.destroy()
                 del src_fwrap_p25
 
-        if self.context.rank == 0:
-            field_names = tuple(ii.name for ii in self.context.rave_fields)
-            targets = [
-                FileDesc(
-                    path=self.context.new_dst_path,
-                    origin="dst",
-                    field_names=field_names,
-                ),
-                FileDesc(
-                    path=self.context.src_path,
-                    origin="src",
-                    field_names=field_names,
-                ),
-            ]
-            data_frame = self.create_desc_stuff(targets)
-            data_frame.to_csv(self.context.desc_stats_out, index=False)
+        # if self.context.rank == 0:
+        #     field_names = tuple(ii.name for ii in self.context.rave_fields)
+        #     targets = [
+        #         FileDesc(
+        #             path=self.context.new_dst_path,
+        #             origin="dst",
+        #             field_names=field_names,
+        #         ),
+        #         FileDesc(
+        #             path=self.context.src_path,
+        #             origin="src",
+        #             field_names=field_names,
+        #         ),
+        #     ]
+        #     data_frame = self.create_desc_stuff(targets)
+        #     data_frame.to_csv(self.context.desc_stats_out, index=False)
 
     def finalize(self) -> None:
         _LOGGER.info("finalizing")
         self._regridder.destroy()
         self._dst_field.destroy()
         self._src_gwrap.value.destroy()
-        self._dst_mesh.destroy()
+        # self._dst_mesh.destroy()
 
     def create_desc_stuff(self, targets: Iterable[FileDesc]) -> pd.DataFrame:
         _LOGGER.info("entering create_desc_stuff")
