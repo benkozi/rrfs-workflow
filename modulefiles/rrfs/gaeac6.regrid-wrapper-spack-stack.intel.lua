@@ -1,6 +1,6 @@
-prepend_path("MODULEPATH", "/gpfs/f6/bil-fire8/scratch/Benjamin.Koziol/sandbox/spack-stack/envs/mpas-aerosols-v2/modules/Core")
-prepend_path("MODULEPATH", "/gpfs/f6/bil-fire8/scratch/Benjamin.Koziol/sandbox/spack-stack/envs/mpas-aerosols-v2/modules/cray-mpich/8.1.32/intel-oneapi-compilers/2025.2.1")
-prepend_path("MODULEPATH", "/gpfs/f6/bil-fire8/scratch/Benjamin.Koziol/sandbox/spack-stack/envs/mpas-aerosols-v2/modules/intel-oneapi-compilers/2025.2.1")
+prepend_path("MODULEPATH", "/gpfs/f6/bil-fire8/world-shared/Benjamin.Koziol/mpas-aerosols/spack-stack/envs/mpas-aerosols/modules/Core")
+prepend_path("MODULEPATH", "/gpfs/f6/bil-fire8/world-shared/Benjamin.Koziol/mpas-aerosols/spack-stack/envs/mpas-aerosols/modules/cray-mpich/8.1.32/intel-oneapi-compilers/2025.2.1")
+prepend_path("MODULEPATH", "/gpfs/f6/bil-fire8/world-shared/Benjamin.Koziol/mpas-aerosols/spack-stack/envs/mpas-aerosols/modules/intel-oneapi-compilers/2025.2.1")
 
 load("stack-intel-oneapi-compilers/2025.2.1")
 load("stack-cray-mpich/8.1.32")
