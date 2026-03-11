@@ -111,7 +111,7 @@ case ${task_id} in
     ;;
   prep_chem)
     module purge
-    module load "rrfs/${MACHINE}.regrid-wrapper-spack-stack"
+    module load "rrfs/${MACHINE}.regrid-wrapper-spack-stack.${COMPILER}"
 #    module load "rrfs/${MACHINE}.${COMPILER}"
 #    module load stack-python esmf py-xarray py-netcdf4 py-mpi4py nco
     ;;
