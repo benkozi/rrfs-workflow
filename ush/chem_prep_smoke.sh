@@ -23,7 +23,9 @@ srun python -u "${SCRIPT}" \
                "${RAVE_OUTPUTDIR}" \
                "${INTERP_WEIGHTS_DIR}" \
                "${YYYY}${MM}${DD}${HH}" \
-               "${MESH_NAME}"  # CDATE?
+               "${MESH_NAME}" \  # CDATE?
+               "" \  # scrip path created in scrip
+               ""    # destination mesh created in script
 mkdir -p logs
 mv ./*.log ./*.ESMF_LogFile logs || echo "could not move logs"
 #
@@ -87,7 +89,9 @@ if [[ ! -r "${ECO_OUTPUTDIR}/ecoregions_${MESH_NAME}_mpas.nc" ]] && [[ -r "${ECO
                    "${ECO_OUTPUTDIR}" \
                    "${INTERP_WEIGHTS_DIR}" \
                    "${YYYY}${MM}${DD}${HH}" \
-                   "${MESH_NAME}"
+                   "${MESH_NAME}" \
+                   "" \  # scrip path created in scrip
+                   ""    # destination mesh created in script
 
   ncks -A -v ecoregion_ID "${ECO_OUTPUTDIR}/ecoregions_${MESH_NAME}_mpas.nc" "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init.nc
 fi
@@ -103,7 +107,9 @@ if [[ ${n_fmc} -gt 0 ]]; then
                      "${FMC_OUTPUTDIR}" \
                      "${INTERP_WEIGHTS_DIR}" \
                      "${YYYY}${MM}${DD}${HH}" \
-                     "${MESH_NAME}"
+                     "${MESH_NAME}" \
+                     "" \  # scrip path created in scrip
+                     ""    # destination mesh created in script
   # Average for ebb2
   ncrcat "${FMC_OUTPUTDIR}"/fmc*"${MESH_NAME}"*nc "${UMBRELLA_PREP_CHEM_DATA}"/fmc.init.nc
   ncks -A -v 10h_dead_fuel_moisture_content "${UMBRELLA_PREP_CHEM_DATA}"/fmc.init.nc "${UMBRELLA_PREP_CHEM_DATA}"/smoke.init.nc

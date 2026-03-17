@@ -287,14 +287,14 @@ class RaveToMpasRegridProcessor:
         _LOGGER.info(f"initialize: {self.context=}")
         esmpy.Manager(debug=True)
 
-        if not self.context.scrip_path.exists() and self.context.rank == 0:
-            _LOGGER.info("writing mpas scrip grid")
-            from pyremap import MpasCellMeshDescriptor
-
-            mpas_desc = MpasCellMeshDescriptor(
-                str(self.context.dst_path), self.context.mesh_name + ".init"
-            )
-            mpas_desc.to_scrip(str(self.context.scrip_path))
+        # if not self.context.scrip_path.exists() and self.context.rank == 0:
+        #     _LOGGER.info("writing mpas scrip grid")
+        #     from pyremap import MpasCellMeshDescriptor
+        #
+        #     mpas_desc = MpasCellMeshDescriptor(
+        #         str(self.context.dst_path), self.context.mesh_name + ".init"
+        #     )
+        #     mpas_desc.to_scrip(str(self.context.scrip_path))
 
         print("create source grid")
         if self.context.x_corner_dim is None:
@@ -458,6 +458,7 @@ class RaveToMpasRegridProcessor:
                 if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
                     area = np.asarray(ds.variables['areaCell'])
                     area_subset = area[reconciled_bounds[0]:reconciled_bounds[1]]
+                _LOGGER.info(f"creating variable {rave_field.name=}")
                 var = ds.createVariable(
                     rave_field.name,
                     rave_field.dtype,
@@ -467,6 +468,7 @@ class RaveToMpasRegridProcessor:
                 for k, v in rave_field.attrs.items():
                     setattr(var, k, v)
 
+                _LOGGER.info(f"setting variable data {rave_field.name=}")
                 # Multiply FRE/FRP by output area so it is back to W or J*s
                 if self.context.dataset_name == "RAVE" and rave_field.name in ("FRP_MEAN", "FRE"):
                     set_variable_data(
@@ -482,6 +484,7 @@ class RaveToMpasRegridProcessor:
                         rave_field.reshape_field_data(dst_field.data),
                         collective=True,
                     )
+            _LOGGER.info(f"finished writing field to netcdf {rave_field.name=}")
             src_fwrap.value.destroy()
             del src_fwrap
 
@@ -722,8 +725,10 @@ def main() -> None:
     weight_dir = sys.argv[5]  # Directory that contains the regrid weights
     cycle = sys.argv[6]  # Cycle Time, YYYYMMDDHH
     mesh_name = sys.argv[7]  # Name of the domain
+    scrip_path = Path(sys.argv[8])  # Path to the input SCRIP/UGRID domain grid file
+    dst_path = Path(sys.argv[9])  # Path to the destination grid (e.g., init.nc)
 
-    ebb_dcycle = os.getenv('EBB_DCYCLE')
+    ebb_dcycle = int(os.getenv('EBB_DCYCLE'))
     #
     # Test to see if scrip files exist
     # testpath = Path(weight_dir + "/scrip_files/mpas_" + mesh_name + "_scrip.nc")
@@ -732,9 +737,11 @@ def main() -> None:
     #    scrip_path = testpath
     # else:
     # FOR NOW, ALWAYS CREATE SCRIP
-    scrip_path = Path(workdir + "/mpas_" + dataset_name + "-" + mesh_name + "_scrip.nc")
+    if scrip_path == "":
+        scrip_path = Path(workdir + "/mpas_" + dataset_name + "-" + mesh_name + "_scrip.nc")
     #
-    dst_path = Path(workdir + "/init.nc")
+    if dst_path == "":
+        dst_path = Path(workdir + "/init.nc")
     desc_stats_out = Path(workdir + "/desc_stats-" + cycle + ".csv")
     #
     YYYY = cycle[0:4]
@@ -930,17 +937,21 @@ def main() -> None:
     weight_path = Path(weight_dir + "/weights_" + dataset_name + "-to-" + "mpas_" + mesh_name + "_" + InterpMethod + ".nc")
 
     if dataset_name == "RAVE":
+        processor = None
         for date_to_process in dates_needed:
-            rave_paths = find_latest_rave_file(input_dir, date_to_process, ebb_dcycle, max_lookback_hours=24)
-            #rave_paths = glob.glob(input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s" + date_to_process + "*")
-            #if len(rave_paths) == 0:
+            _LOGGER.info(f"RAVE processing {date_to_process=}")
+            rave_paths = find_latest_rave_file(input_dir, date_to_process, ebb_dcycle,
+                                               max_lookback_hours=24)
+            # rave_paths = glob.glob(input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s" + date_to_process + "*")
+            # if len(rave_paths) == 0:
             #    print("No matching files found for " + input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s" + date_to_process + "*")
             #    continue
             if not rave_paths:
-                print(f"No matching files found for {date_to_process} (even after lookback).")
+                _LOGGER.warn(
+                    f"No matching files found for {date_to_process} (even after lookback).")
                 continue
 
-            print('Reading RAVE file:', rave_paths)
+            _LOGGER.info(f'Reading RAVE file: {rave_paths=}')
             rave_path = rave_paths[0]
             new_dst_path = Path(output_dir + "/" + mesh_name + "-RAVE-" + date_to_process + ".nc")
             # --- OPTIMIZATION START ---
@@ -987,9 +998,9 @@ def main() -> None:
             # Run the regridding (Fast)
             processor.run()
             # --- OPTIMIZATION END ---
-                    # Only finalize after ALL files are done
-            if processor:
-                processor.finalize()
+            # Only finalize after ALL files are done
+        if processor:
+            processor.finalize()
 
             _LOGGER.info("success")
 

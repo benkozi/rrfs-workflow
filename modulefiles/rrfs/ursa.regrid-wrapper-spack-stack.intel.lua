@@ -5,6 +5,7 @@ prepend_path("MODULEPATH", "/scratch3/NCEPDEV/stmp/Benjamin.Koziol/sandbox/spack
 load("stack-intel-oneapi-compilers/2025.3.1")
 load("stack-intel-oneapi-mpi/2021.17")
 
+load("hdf5/1.14.3")
 load("esmf/8.9.1")
 load("py-netcdf4/1.7.2")
 load("py-pytest/8.2.1")
