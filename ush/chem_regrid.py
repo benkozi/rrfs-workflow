@@ -737,9 +737,11 @@ def main() -> None:
     #    scrip_path = testpath
     # else:
     # FOR NOW, ALWAYS CREATE SCRIP
-    # scrip_path = Path(workdir + "/mpas_" + dataset_name + "-" + mesh_name + "_scrip.nc")
+    if scrip_path == "":
+        scrip_path = Path(workdir + "/mpas_" + dataset_name + "-" + mesh_name + "_scrip.nc")
     #
-    # dst_path = Path(workdir + "/init.nc")
+    if dst_path == "":
+        dst_path = Path(workdir + "/init.nc")
     desc_stats_out = Path(workdir + "/desc_stats-" + cycle + ".csv")
     #
     YYYY = cycle[0:4]
