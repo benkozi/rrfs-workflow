@@ -11,19 +11,14 @@ FMC_INPUTDIR=${CHEM_INPUT}/aux/FMC/raw/${YYYY}/${MM}/
 RAVE_OUTPUTDIR=${DATA}
 ECO_OUTPUTDIR=${DATA}
 FMC_OUTPUTDIR=${DATA}
-# TODO, check for pregenerated data
-#RAVE_OUTPUTDIR=${CHEM_INPUT}/processed/
-#ECO_OUTPUTDIR=${CHEM_INPUT}/aux/ecoregion/processed/
-#FMC_OUTPUTDIR=${CHEM_INPUT}/aux/FMC/processed/${YYYY}/${MM}/
 #
 srun python -u "${SCRIPT}" \
-               "RAVE" \
+               "${FIRE_DATASET}" \
                "${DATA}" \
-               "${RAVE_INPUT}" \
+               "${FIRE_INPUT}" \
                "${RAVE_OUTPUTDIR}" \
                "${INTERP_WEIGHTS_DIR}" \
                "${YYYY}${MM}${DD}${HH}" \
-               "${MESH_NAME}" \  # CDATE?
                "" \  # scrip path created in scrip
                ""    # destination mesh created in script
 mkdir -p logs
@@ -38,7 +33,16 @@ do
   else
     ihour2=${ihour}
   fi
-  timestr1=$(date +%Y%m%d%H -d "$previous_day + $ihour2 hours")
+  if [[ "${EBB_DCYCLE}" == -1 ]]; then
+     # Peristence emissions, only 24 forecasts are possible
+     # Beyond that we need to repeat the emissions
+     timestr1=$(date +%Y%m%d%H -d "$previous_days + $ihour2 hours")
+  else
+     # Either NOWcast (1 emission file per current forecast hour) or
+     # Forecasted emissions requiring the previous 24 hours
+     timestr1=$(date +%Y%m%d%H -d "$current_day + $ihour hours")
+  fi
+
   timestr2=$(date +%Y-%m-%d_%H -d "$current_day + $ihour hours")
   timestr3=$(date +%Y-%m-%d_%H:00:00 -d "$current_day + $ihour hours")
   #
@@ -54,7 +58,7 @@ do
     ncrename -v NH3,e_bb_in_nh3 "${EMISFILE2}"
     ln -sf "${EMISFILE2}" "${EMISFILE}"
   else
-    dummyRAVE=${FIXrrfs}/chemistry/RAVE/RAVE.dummy.${MESH_NAME}.nc
+    dummyRAVE=${FIXrrfs}/chemistry/${FIRE_DATASET}/${FIRE_DATASET}.dummy.${MESH_NAME}.nc
     if [[ -s ${dummyRAVE} ]]; then
       cp "${dummyRAVE}" "${EMISFILE}"
     else
@@ -89,7 +93,6 @@ if [[ ! -r "${ECO_OUTPUTDIR}/ecoregions_${MESH_NAME}_mpas.nc" ]] && [[ -r "${ECO
                    "${ECO_OUTPUTDIR}" \
                    "${INTERP_WEIGHTS_DIR}" \
                    "${YYYY}${MM}${DD}${HH}" \
-                   "${MESH_NAME}" \
                    "" \  # scrip path created in scrip
                    ""    # destination mesh created in script
 
@@ -106,8 +109,7 @@ if [[ ${n_fmc} -gt 0 ]]; then
                      "${FMC_INPUTDIR}" \
                      "${FMC_OUTPUTDIR}" \
                      "${INTERP_WEIGHTS_DIR}" \
-                     "${YYYY}${MM}${DD}${HH}" \
-                     "${MESH_NAME}" \
+                     "${YYYY}${MM}${DD}${HH}"
                      "" \  # scrip path created in scrip
                      ""    # destination mesh created in script
   # Average for ebb2

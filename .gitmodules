@@ -5,8 +5,8 @@
         ignore = all
 [submodule "sorc/MPAS-Model"]
 	path = sorc/MPAS-Model
-	url = https://github.com/RRFSx/MPAS-Model
-        branch = gsl/develop
+	url = https://github.com/cheMPAS-Fire/MPAS-Model
+        branch = chem/develop
         ignore = all
 [submodule "sorc/RDASApp"]
 	path = sorc/RDASApp
@@ -34,4 +34,8 @@
 [submodule "sorc/rank_run"]
 	path = sorc/rank_run
 	url = https://github.com/RRFSx/rank_run
+        ignore = all
+[submodule "sorc/MPASBlend"]
+	path = sorc/MPASBlend
+	url = https://github.com/RRFSx/mpas_blending.git
         ignore = all
