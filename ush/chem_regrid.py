@@ -1,7 +1,6 @@
 import sys
 import glob
 from abc import abstractmethod, ABC
-from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from functools import cached_property
 from pathlib import Path
@@ -12,6 +11,7 @@ import os
 import esmpy
 import numpy as np
 import pandas as pd
+from pydantic import BaseModel
 
 from regrid_wrapper.context.comm import COMM, reconcile_bounds
 from regrid_wrapper.context.logging import LOGGER
@@ -114,8 +114,7 @@ def create_ngfs_sparse_mesh(lat_1d, lon_1d, resolution=0.01):
 
     return mesh
 #
-@dataclass
-class AbstractRaveField(ABC):
+class AbstractRaveField(ABC, BaseModel):
     name: str
     attrs: dict[str, Any]
     fill_value: float
@@ -244,8 +243,7 @@ class RaveField4d(AbstractRaveField):
         return target.reshape(-1, self.level_out_size,self.time_size)
 
 
-@dataclass
-class RaveToMpasRegridContext:
+class RaveToMpasRegridContext(BaseModel):
     dataset_name: str
     src_path: Path
     dst_path: Path
@@ -361,7 +359,7 @@ class RaveToMpasRegridProcessor:
         #     )
         #     mpas_desc.to_scrip(str(self.context.scrip_path))
 
-        print("create source grid")
+        _LOGGER.info("create source grid")
         if self.context.x_corner_dim is None:
             self._src_gwrap = NcToGrid(
                 path=self.context.src_path,
@@ -813,7 +811,8 @@ class RaveToMpasRegridProcessor:
 
         _LOGGER.info("create destination mesh")
         dst_mesh = esmpy.Mesh(
-            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.SCRIP
+            filename=str(self.context.scrip_path), filetype=esmpy.FileFormat.UGRID,
+            meshname="grid_topology"
         )
 
         # Create destination field (using logic from your original initialize method)
@@ -965,8 +964,12 @@ def main() -> None:
     output_dir = sys.argv[4]  # Top directory of output data
     weight_dir = sys.argv[5]  # Directory that contains the regrid weights
     cycle = sys.argv[6]  # Cycle Time, YYYYMMDDHH
-    scrip_path = Path(sys.argv[7])  # Path to the input SCRIP/UGRID domain grid file
-    dst_path = Path(sys.argv[8])  # Path to the destination grid (e.g., init.nc)
+    try:
+        scrip_path = Path(sys.argv[7])  # Path to the input SCRIP/UGRID domain grid file
+        dst_path = Path(sys.argv[8])  # Path to the destination grid (e.g., init.nc)
+    except IndexError:
+        scrip_path = None
+        dst_path = None
 
     #mesh_name  = os.getenv('MESH_NAME')
     ebb_dcycle = int(os.getenv('EBB_DCYCLE'))
@@ -980,10 +983,10 @@ def main() -> None:
     #    scrip_path = testpath
     # else:
     # FOR NOW, ALWAYS CREATE SCRIP
-    if scrip_path == "":
+    if scrip_path is None:
         scrip_path = Path(workdir + "/mpas_" + dataset_name + "-" + mesh_name + "_scrip.nc")
     #
-    if dst_path == "":
+    if dst_path is None:
         dst_path = Path(workdir + "/init.nc")
     desc_stats_out = Path(workdir + "/desc_stats-" + cycle + ".csv")
     #
@@ -1248,15 +1251,8 @@ def main() -> None:
             new_dst_path = Path(output_dir + "/" + mesh_name + "-RAVE-" + date_to_process + ".nc")
 
             # --- OPTIMIZATION START ---
-            try:
-                processor
-            except NameError:
-                proc_exists = False
-            else:
-                proc_exists = True
-            if proc_exists == False:
-
-                # FIRST PASS: Full Initialization
+            if processor is None:
+                _LOGGER.info("FIRST PASS: Full Initialization")
                 # This pays the "expensive" cost of loading weights/grids, but only once.
 
                 context = RaveToMpasRegridContext(
@@ -1290,7 +1286,7 @@ def main() -> None:
                 processor = RaveToMpasRegridProcessor(context=context)
                 processor.initialize()
             else:
-                # SUBSEQUENT PASSES: Hot Swap
+                _LOGGER.info("SUBSEQUENT PASSES: Hot Swap")
                 # Just update the paths in the existing context.
                 # The grids and regridder (weights) remain loaded in memory.
                 processor.context.src_path = rave_path
