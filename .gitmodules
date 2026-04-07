@@ -43,3 +43,4 @@
 	path = sorc/regrid-wrapper
 	url = https://github.com/benkozi/regrid-wrapper.git
 	branch = feat/cli-split-dev
+	ignore = all
