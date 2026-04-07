@@ -105,14 +105,9 @@ SCRIPT=${USHrrfs}/chem_regrid.py
 VINTERP_SCRIPT=${USHrrfs}/chem_vinterp.py
 INTERP_WEIGHTS_DIR=${CHEM_INPUT}/grids/interpolation_weights/
 #
-# Set a few things for the CONDA environment
+# Set a few things for the regrid-wrapper
 export REGRID_WRAPPER_LOG_DIR=${DATA}
-regrid_wrapper_dir=${REGRID_WRAPPER_DIR} #/lfs5/BMC/rtwbl/rap-chem/mpas_rt/working/ben_interp/regrid-wrapper/
-PYTHONDIR=${regrid_wrapper_dir}/src
-#regrid_conda_env=${REGRID_CONDA_ENV}  #CONDAENV=/lfs5/BMC/rtwbl/rap-chem/miniconda/envs/regrid-wrapper
-#export PATH=${regrid_conda_env}/bin:${PATH}
-#export ESMFMKFILE=${regrid_conda_env}/lib/esmf.mk
-export PYTHONPATH=${PYTHONDIR}:${PYTHONPATH}
+export PYTHONPATH=${REGRID_WRAPPER_DIR}/src:${PYTHONPATH}
 #
 #==================================================================================================#
 if [[ "${CHEM_GROUP}" == "smoke" ]]; then
