@@ -39,3 +39,8 @@
 	path = sorc/MPASBlend
 	url = https://github.com/RRFSx/mpas_blending.git
         ignore = all
+[submodule "sorc/regrid-wrapper"]
+	path = sorc/regrid-wrapper
+	url = https://github.com/benkozi/regrid-wrapper.git
+	branch = feat/cli-split-dev
+	ignore = all
