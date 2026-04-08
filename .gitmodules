@@ -46,5 +46,5 @@
 [submodule "sorc/regrid-wrapper"]
 	path = sorc/regrid-wrapper
 	url = https://github.com/benkozi/regrid-wrapper.git
-	branch = feat/move-chem-regrid-logic
+	branch = feat/ci-split-dev
 	ignore = all
