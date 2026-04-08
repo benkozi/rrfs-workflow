@@ -1012,7 +1012,7 @@ def main() -> None:
         # lmask[:] = np.where(xland > 0,1,0)
 
     if dataset_name == "RAVE":
-        field_names = ("TPM", "FRE", "FRP_MEAN", "PM25", "NH3", "SO2", "CH4","CO","NOx")
+        field_names = ("TPM","FRE", "FRP_MEAN", "PM25", "NH3", "SO2", "CH4","CO","NOx")
         # JLS, TODO - NEED TO ACCOUNT FOR EBB1, MORE THAN 24, ETC.
         # Determine the cycle dates to process +%Y%m%d%H
         dates_needed = []
@@ -1235,10 +1235,10 @@ def main() -> None:
         processor = None
         for date_to_process in dates_needed:
             _LOGGER.info(f"RAVE processing {date_to_process=}")
-            rave_paths = find_latest_rave_file(input_dir, date_to_process, ebb_dcycle,
-                                               max_lookback_hours=24)
-            # rave_paths = glob.glob(input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s" + date_to_process + "*")
-            # if len(rave_paths) == 0:
+            processor = None
+            rave_paths = find_latest_rave_file(input_dir, date_to_process, ebb_dcycle, max_lookback_hours=24)
+            #rave_paths = glob.glob(input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s" + date_to_process + "*")
+            #if len(rave_paths) == 0:
             #    print("No matching files found for " + input_dir + "/RAVE-HrlyEmiss-3km_v2r0_blend_s" + date_to_process + "*")
             #    continue
             if not rave_paths:
