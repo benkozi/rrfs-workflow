@@ -20,7 +20,7 @@ export RETRO_CYCLETHROTTLE=1
 # ---------------------------------------------
 export CHEM_GROUPS="smoke" # any combinations of "smoke, anthro, pollen, dust, rwc"
 export EBB_DCYCLE=-1
-export REGRID_WRAPPER_DIR="${HOMErrfs}/sorc/regrid-wrapper/src"
+export REGRID_WRAPPER_DIR="${HOMErrfs}/sorc/regrid-wrapper"
 #
 export CONFIG_COARSE=false
 export CONFIG_ULTRAFINE=false
