@@ -43,8 +43,3 @@
 	path = workflow/sideload/pyDAmonitor
 	url = https://github.com/pyDAmonitor/pyDAmonitor.git
         ignore = all
-[submodule "sorc/regrid-wrapper"]
-	path = sorc/regrid-wrapper
-	url = https://github.com/benkozi/regrid-wrapper.git
-	    branch=feat/cli-split
-	    ignore = all
